@@ -1,0 +1,16 @@
+# Publish backend API on ${BACKEND_PORT}.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.bridge.yml up --build
+#
+# Ollama on the host: set OLLAMA_HOST_URL=http://host.docker.internal:11434 (Ollama must listen on 0.0.0.0),
+# or use docker-compose.host-ollama.yml if Ollama is only on 127.0.0.1:11434.
+# Ollama in Docker (--profile ollama): set OLLAMA_HOST_URL=http://ollama:11434 in .env.
+
+services:
+  backend:
+    ports:
+      - "${BACKEND_PORT}:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      OLLAMA_BASE_URL: ${OLLAMA_HOST_URL:-http://host.docker.internal:11434}
