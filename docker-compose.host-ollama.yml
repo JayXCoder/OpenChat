@@ -1,0 +1,32 @@
+# Stack without the Ollama container — use when Ollama runs on the host (default 127.0.0.1:11434).
+#
+#   docker compose -f docker-compose.yml -f docker-compose.host-ollama.yml up --build
+#
+# The backend uses the host network so it shares loopback with Ollama (same as many other Docker setups).
+# Postgres stays on the bridge; the backend reaches it via 127.0.0.1:${POSTGRES_PORT}.
+#
+# Set BACKEND_DATABASE_URL in .env (see .env.example). The frontend container calls the API via
+# host.docker.internal:${BACKEND_PORT}.
+
+services:
+  backend:
+    network_mode: host
+    environment:
+      OLLAMA_BASE_URL: http://127.0.0.1:11434
+      APP_PORT: ${BACKEND_PORT}
+      DATABASE_URL: ${BACKEND_DATABASE_URL}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'python -c "import urllib.request; urllib.request.urlopen(''http://127.0.0.1:${BACKEND_PORT}/health'')"',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  frontend:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      BACKEND_INTERNAL_URL: http://host.docker.internal:${BACKEND_PORT}
