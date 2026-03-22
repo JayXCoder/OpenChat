@@ -7,6 +7,7 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -21,23 +22,26 @@ from app.models.chat import Base
 def test_database_url() -> str:
     url = os.getenv("TEST_DATABASE_URL")
     if not url:
-        pytest.skip(
-            "TEST_DATABASE_URL is not set; skipping postgres integration tests"
-        )
+        pytest.skip("TEST_DATABASE_URL is not set; skipping postgres integration tests")
     return url
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture
 async def db_engine(test_database_url: str):
-    engine = create_async_engine(test_database_url, pool_pre_ping=True)
+    """Function-scoped engine so asyncpg uses the same event loop as each test.
+
+    Session-scoped engines break on pytest-asyncio >= 0.23 when function-scoped
+    tests run on a fresh loop per test ("Future attached to a different loop").
+    """
+    engine = create_async_engine(
+        test_database_url,
+        pool_pre_ping=True,
+        poolclass=NullPool,
+    )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    try:
-        yield engine
-    finally:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
-        await engine.dispose()
+    yield engine
+    await engine.dispose()
 
 
 @pytest_asyncio.fixture
@@ -58,6 +62,8 @@ async def api_client(db_session):
         yield db_session
 
     app.dependency_overrides[get_db_session] = _override_get_db_session
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as c:
         yield c
     app.dependency_overrides.clear()

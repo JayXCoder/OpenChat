@@ -7,7 +7,9 @@ from app.services.chat_service import ChatService
 
 @pytest.mark.asyncio
 async def test_sessions_create_and_list(api_client):
-    create_resp = await api_client.post("/api/v1/sessions", json={"title": "API Session"})
+    create_resp = await api_client.post(
+        "/api/v1/sessions", json={"title": "API Session"}
+    )
     assert create_resp.status_code == 200
     created = create_resp.json()
     assert created["title"] == "API Session"
@@ -56,6 +58,28 @@ async def test_chat_stream_rejects_oversized_message(api_client):
         "model": "qwen3:latest",
     }
     resp = await api_client.post("/api/v1/chat/stream", json=payload)
+    # Exceeds ChatStreamRequest.message max_length → 422 before route byte guard.
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_rejects_oversized_utf8_payload(api_client):
+    """Under char max_length but over 32 KiB UTF-8 hits route-level guard (413)."""
+    create_resp = await api_client.post("/api/v1/sessions", json={"title": "Bytes"})
+    session_id = create_resp.json()["id"]
+    # 9000 × 4-byte emoji ≈ 36 KiB; len(str) < 12000
+    message = "😀" * 9000
+    assert len(message.encode("utf-8")) > 32 * 1024
+
+    resp = await api_client.post(
+        "/api/v1/chat/stream",
+        json={
+            "session_id": session_id,
+            "message": message,
+            "provider": "ollama",
+            "model": "qwen3:latest",
+        },
+    )
     assert resp.status_code == 413
 
 
