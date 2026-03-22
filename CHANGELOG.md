@@ -14,7 +14,6 @@ Latest changes after the production baseline below.
 
 - `ARCHITECTURE.md` — system overview, layers, streaming contract, security posture, quality gates.
 - Post-send message sync: after each chat request completes, messages for the active session are re-fetched from the backend so UI stays consistent on flaky mobile streams.
-- Docker smoke script reads `FRONTEND_PORT` / `BACKEND_PORT` from root `.env` and retries readiness for health and API proxy checks (`scripts/docker-smoke-e2e.sh`).
 
 ### Changed
 
@@ -28,6 +27,7 @@ Latest changes after the production baseline below.
 ### Removed
 
 - Visible composer hint text that described private reasoning / `think` tags (behavior unchanged; UI copy removed).
+- **CI**: Docker Compose smoke E2E job and `scripts/docker-smoke-e2e.sh` — GitHub Actions has no checked-in `backend/.env` / `frontend/.env`, and a full stack + Ollama is not assumed in CI. Image builds remain gated on unit tests and Playwright E2E.
 
 ---
 
@@ -53,8 +53,8 @@ First consolidated release: fullstack chat with persistence, streaming, multi-pr
 - **Branding**: OpenChat name, terminal-style logo, provider labels (e.g. OpenAI for `openai_compatible`).
 - **Thinking**: optional reasoning stream from Ollama wrapped for UI; collapsible “Thinking” block per assistant message; streaming status shows “Thinking” only during reasoning phase, otherwise rotating status lines.
 - **Attachments**: images and files in composer; backend validation and multimodal / text-in-prompt handling.
-- **Tests**: backend unit + Postgres integration + API route tests; frontend unit/component tests; Playwright browser E2E; docker-compose smoke script.
-- **CI/CD**: `test.yml` (push/PR: backend, frontend, Playwright); `deploy.yml` (main: tests, E2E, smoke, then Docker image builds) with strict `needs` gating.
+- **Tests**: backend unit + Postgres integration + API route tests; frontend unit/component tests; Playwright browser E2E.
+- **CI/CD**: `test.yml` (push/PR: backend, frontend, Playwright); `deploy.yml` (main: same tests + E2E, then Docker image builds) with strict `needs` gating.
 
 ### Changed
 

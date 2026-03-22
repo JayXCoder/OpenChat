@@ -20,7 +20,7 @@ flowchart LR
 
 - `frontend/`: UI, client state, and API proxy routes.
 - `backend/`: API routes, services, repositories, provider adapters, and DB models.
-- Root-level orchestration: `docker-compose.yml`, shared `.env.example`, CI workflows, and smoke test scripts.
+- Root-level orchestration: `docker-compose.yml`, shared `.env.example`, CI workflows, and optional local helper scripts under `scripts/`.
 
 ## Backend Design
 
@@ -83,6 +83,5 @@ These hooks are intentionally lightweight integration points for future retrieva
 
 - Backend: unit + integration tests.
 - Frontend: unit + component tests.
-- Browser E2E: Playwright flow coverage.
-- Docker smoke E2E: stack boot, health checks, and stream smoke path.
+- Browser E2E: Playwright flow coverage (mocked API; no full Docker/Ollama required in CI).
 - CI deploy gate blocks image builds unless all prerequisite tests pass.
