@@ -1,6 +1,7 @@
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.chat import router as chat_router
@@ -39,3 +40,16 @@ async def _log_ollama_target() -> None:
 @app.get("/health")
 async def healthcheck():
     return {"status": "ok"}
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response: Response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    response.headers["Cross-Origin-Resource-Policy"] = "same-site"
+    # Keep CSP compatible with Next.js inline/runtime behavior while blocking embedding.
+    response.headers["Content-Security-Policy"] = "frame-ancestors 'none'; base-uri 'self'"
+    return response

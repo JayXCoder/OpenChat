@@ -62,7 +62,7 @@ export function ChatWindow() {
   }, [isStreaming, isActuallyThinking]);
 
   return (
-    <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+    <div ref={scrollerRef} className="flex-1 min-h-0 overflow-y-auto px-3 py-4 md:px-4 md:py-6 space-y-3 md:space-y-4">
       <div className="rounded-lg border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-xs text-zinc-300">
         Session tokens: send ~{totalPromptTokens} tok | respond ~{totalResponseTokens} tok
       </div>

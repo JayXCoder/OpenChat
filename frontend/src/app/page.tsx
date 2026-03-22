@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Menu } from "lucide-react";
 
 import { ChatInput } from "@/components/chat-input";
 import { ChatWindow } from "@/components/chat-window";
@@ -19,6 +20,7 @@ import { ChatAttachment, ProviderModelCatalog } from "@/lib/types";
 
 export default function Page() {
   const [catalog, setCatalog] = useState<ProviderModelCatalog[]>([]);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const sessionId = useChatStore((s) => s.sessionId);
   const sessions = useChatStore((s) => s.sessions);
@@ -125,21 +127,47 @@ export default function Page() {
       setError((error as Error).message);
     } finally {
       setStreaming(false);
+      try {
+        const synced = await getSessionMessages(activeSessionId);
+        setMessages(synced);
+      } catch {
+        // Keep optimistic messages when sync fails.
+      }
       listSessions().then(setSessions).catch(() => {});
     }
   };
 
   return (
-    <main className="h-screen w-screen flex">
+    <main className="h-dvh min-h-dvh w-full overflow-hidden flex">
+      {mobileSidebarOpen ? (
+        <button
+          type="button"
+          aria-label="Close sidebar overlay"
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      ) : null}
       <Sidebar
         sessions={sessions}
         catalog={catalog}
+        mobileOpen={mobileSidebarOpen}
+        onCloseMobile={() => setMobileSidebarOpen(false)}
         onNewChat={handleNewChat}
         onSelectSession={handleSelectSession}
         onRenameSession={handleRenameSession}
         onDeleteSession={handleDeleteSession}
       />
-      <section className="flex-1 flex flex-col bg-black/20 backdrop-blur-sm">
+      <section className="min-w-0 flex-1 flex flex-col bg-black/20 backdrop-blur-sm">
+        <div className="md:hidden border-b border-zinc-800 px-3 py-2 shrink-0">
+          <button
+            type="button"
+            aria-label="Open sidebar"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-200 hover:bg-zinc-800"
+            onClick={() => setMobileSidebarOpen(true)}
+          >
+            <Menu className="h-4 w-4" />
+          </button>
+        </div>
         <ChatWindow />
         <ChatInput
           isStreaming={isStreaming}

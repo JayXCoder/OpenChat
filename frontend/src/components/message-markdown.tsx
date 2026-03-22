@@ -32,6 +32,23 @@ interface MessageMarkdownProps {
   content: string;
 }
 
+function sanitizeUrl(url: string): string {
+  const trimmed = (url || "").trim();
+  if (!trimmed) return "#";
+
+  const lower = trimmed.toLowerCase();
+  if (
+    lower.startsWith("javascript:") ||
+    lower.startsWith("vbscript:") ||
+    lower.startsWith("file:") ||
+    lower.startsWith("data:")
+  ) {
+    return "#";
+  }
+
+  return trimmed;
+}
+
 export function MessageMarkdown({ content }: MessageMarkdownProps) {
   return (
     <div
@@ -48,9 +65,25 @@ export function MessageMarkdown({ content }: MessageMarkdownProps) {
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        skipHtml
+        urlTransform={(url) => sanitizeUrl(url)}
         components={{
           pre({ children }) {
             return <div className="not-prose my-3 overflow-x-auto first:mt-0">{children}</div>;
+          },
+          a({ href, children, ...props }) {
+            const safeHref = sanitizeUrl(href || "");
+            const isExternal = /^https?:\/\//i.test(safeHref);
+            return (
+              <a
+                href={safeHref}
+                rel={isExternal ? "noopener noreferrer nofollow" : undefined}
+                target={isExternal ? "_blank" : undefined}
+                {...props}
+              >
+                {children}
+              </a>
+            );
           },
           code({ className, children, ...props }) {
             const match = /language-(\w+)/.exec(className || "");
