@@ -12,6 +12,8 @@ import { ProviderModelCatalog, SessionModel } from "@/lib/types";
 interface SidebarProps {
   sessions: SessionModel[];
   catalog: ProviderModelCatalog[];
+  mobileOpen: boolean;
+  onCloseMobile: () => void;
   onNewChat: () => void;
   onSelectSession: (id: string) => void;
   onRenameSession: (id: string, title: string) => void | Promise<void>;
@@ -21,6 +23,8 @@ interface SidebarProps {
 export function Sidebar({
   sessions,
   catalog,
+  mobileOpen,
+  onCloseMobile,
   onNewChat,
   onSelectSession,
   onRenameSession,
@@ -65,12 +69,27 @@ export function Sidebar({
     cancelRename();
   };
 
+  const handleSelect = (id: string) => {
+    onSelectSession(id);
+    onCloseMobile();
+  };
+
   return (
-    <aside className="w-80 bg-panel/90 border-r border-zinc-800 p-4 flex flex-col gap-4">
+    <aside
+      className={`${
+        mobileOpen ? "flex" : "hidden"
+      } fixed inset-y-0 left-0 z-40 w-[85vw] max-w-80 bg-panel/95 border-r border-zinc-800 p-3 md:p-4 flex-col gap-3 md:gap-4 transition-transform duration-200 md:static md:flex md:w-80 md:max-w-none md:translate-x-0 ${
+        mobileOpen ? "translate-x-0" : "-translate-x-full"
+      }`}
+      aria-hidden={!mobileOpen}
+    >
       <AppLogo />
       <button
         className="w-full rounded-lg border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 transition px-3 py-2 text-sm flex items-center justify-center gap-2"
-        onClick={onNewChat}
+        onClick={() => {
+          onNewChat();
+          onCloseMobile();
+        }}
       >
         <PlusCircle size={16} />
         New Chat
@@ -79,7 +98,7 @@ export function Sidebar({
       <ModelSelector catalog={catalog} />
 
       <div className="text-xs uppercase text-zinc-400 tracking-wide">Sessions</div>
-      <div className="flex-1 overflow-y-auto space-y-2">
+      <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
         {sessions.map((session) => (
           <div
             key={session.id}
@@ -123,7 +142,7 @@ export function Sidebar({
               <>
                 <button
                   type="button"
-                  onClick={() => onSelectSession(session.id)}
+                  onClick={() => handleSelect(session.id)}
                   className="min-w-0 flex-1 px-3 py-2 text-left text-sm text-zinc-200 hover:bg-zinc-800/50 rounded-l-lg"
                 >
                   <span className="line-clamp-2">{session.title?.trim() || "Untitled chat"}</span>

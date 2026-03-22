@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +13,8 @@ router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
 async def stream_chat(
     payload: ChatStreamRequest, db: AsyncSession = Depends(get_db_session)
 ):
+    if payload.message and len(payload.message.encode("utf-8")) > 32 * 1024:
+        raise HTTPException(status_code=413, detail="Message payload too large")
     service = ChatService(db)
 
     async def event_stream():

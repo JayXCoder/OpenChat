@@ -26,11 +26,11 @@ class AttachmentIn(BaseModel):
 
 class ChatStreamRequest(BaseModel):
     session_id: UUID
-    message: str = ""
-    provider: str
-    model: str
+    message: str = Field(default="", max_length=12000)
+    provider: str = Field(min_length=1, max_length=64)
+    model: str = Field(min_length=1, max_length=128)
     temperature: float | None = 0.2
-    max_tokens: int | None = None
+    max_tokens: int | None = Field(default=None, ge=1, le=16384)
     attachments: list[AttachmentIn] | None = Field(default=None, max_length=8)
     thinking_enabled: bool = True
 
@@ -40,6 +40,13 @@ class ChatStreamRequest(BaseModel):
         has_files = bool(self.attachments)
         if not has_text and not has_files:
             raise ValueError("Provide a non-empty message or at least one attachment")
+        if self.attachments:
+            total_bytes = 0
+            for item in self.attachments:
+                pad = "=" * ((4 - len(item.data_base64) % 4) % 4)
+                total_bytes += len(base64.b64decode(item.data_base64 + pad))
+            if total_bytes > 12 * 1024 * 1024:
+                raise ValueError("Total attachment size exceeds 12MB")
         return self
 
 

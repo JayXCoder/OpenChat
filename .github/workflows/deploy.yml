@@ -15,6 +15,20 @@ jobs:
     name: Backend Tests (deploy gate)
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: openchat_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d openchat_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     defaults:
       run:
         working-directory: backend
@@ -35,6 +49,7 @@ jobs:
       - name: Run backend tests
         env:
           PYTHONPATH: ${{ github.workspace }}/backend
+          TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/openchat_test
         run: pytest -q
 
   frontend-tests:
@@ -61,6 +76,49 @@ jobs:
       - name: Run frontend tests
         run: npm test
 
+  frontend-e2e:
+    name: Frontend Browser E2E (deploy gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: frontend
+    needs:
+      - frontend-tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install chromium
+
+      - name: Run browser E2E
+        run: npm run test:e2e
+
+  docker-smoke-e2e:
+    name: Docker Smoke E2E (deploy gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    needs:
+      - backend-tests
+      - frontend-tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run docker smoke E2E
+        run: bash ./scripts/docker-smoke-e2e.sh
+
   build-backend-image:
     name: Build Backend Docker Image
     runs-on: ubuntu-latest
@@ -68,6 +126,8 @@ jobs:
     needs:
       - backend-tests
       - frontend-tests
+      - frontend-e2e
+      - docker-smoke-e2e
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -92,6 +152,8 @@ jobs:
     needs:
       - backend-tests
       - frontend-tests
+      - frontend-e2e
+      - docker-smoke-e2e
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -116,6 +178,8 @@ jobs:
     needs:
       - backend-tests
       - frontend-tests
+      - frontend-e2e
+      - docker-smoke-e2e
     steps:
       - name: Pull postgres image used by compose
         run: docker pull postgres:16-alpine

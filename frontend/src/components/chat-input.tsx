@@ -128,8 +128,11 @@ export function ChatInput({
   };
 
   return (
-    <form onSubmit={submit} className="border-t border-zinc-800 p-4 bg-panelAlt/70">
-      <div className="rounded-2xl border border-zinc-700 bg-zinc-900 p-3 flex flex-col gap-2">
+    <form
+      onSubmit={submit}
+      className="sticky bottom-0 z-20 border-t border-zinc-800 p-2 md:p-4 bg-panelAlt/90 shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+    >
+      <div className="rounded-2xl border border-zinc-700 bg-zinc-900 p-2.5 md:p-3 flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <input
             ref={fileInputRef}
@@ -164,11 +167,6 @@ export function ChatInput({
             <Brain className="h-3.5 w-3.5" />
             Thinking {thinkingEnabled ? "on" : "off"}
           </button>
-          <p className="text-[11px] text-zinc-500 flex-1 min-w-[12rem] leading-snug">
-            {thinkingEnabled
-              ? "Private reasoning is wrapped in `</think>` and appears in the Thinking section under each assistant reply (stays readable after the reply finishes)."
-              : "Direct answers: the model is asked not to emit hidden reasoning blocks."}
-          </p>
         </div>
 
         {pending.length > 0 ? (
@@ -205,9 +203,9 @@ export function ChatInput({
           </div>
         ) : null}
 
-        <div className="flex gap-3 items-end">
+        <div className="flex gap-2 md:gap-3 items-end">
           <textarea
-            className="flex-1 resize-none bg-transparent outline-none text-sm text-zinc-100 min-h-20"
+            className="flex-1 resize-none bg-transparent outline-none text-sm text-zinc-100 min-h-16 md:min-h-20"
             placeholder="Ask anything… (optional if you attach files)"
             value={value}
             onChange={(event) => setValue(event.target.value)}
@@ -216,7 +214,7 @@ export function ChatInput({
           <button
             type="submit"
             disabled={isStreaming || (!value.trim() && pending.length === 0)}
-            className="rounded-lg bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-700 px-4 py-2 text-sm"
+            className="rounded-lg bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-700 px-3 md:px-4 py-2 text-sm shrink-0"
           >
             Send
           </button>
