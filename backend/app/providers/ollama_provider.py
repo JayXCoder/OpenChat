@@ -9,7 +9,24 @@ import httpx
 
 log = logging.getLogger(__name__)
 
-# Ollama streams `thinking` separately; wrap in <think>...</think> for the frontend parser.
+
+async def fetch_ollama_model_names(base_url: str, timeout_seconds: int) -> list[str]:
+    """List model names from Ollama's local API (`GET /api/tags`)."""
+    base = base_url.rstrip("/")
+    async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+        response = await client.get(f"{base}/api/tags")
+        response.raise_for_status()
+        data = response.json()
+    models = data.get("models") or []
+    names: list[str] = []
+    for item in models:
+        name = item.get("name")
+        if name:
+            names.append(str(name))
+    return sorted(set(names))
+
+
+# Ollama streams `thinking` separately; wrap in think tags for the frontend parser.
 _THINK_OPEN = chr(60) + "think" + chr(62)
 _THINK_CLOSE = chr(60) + "/" + "think" + chr(62) + "\n\n"
 

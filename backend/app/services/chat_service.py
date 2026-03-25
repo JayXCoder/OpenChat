@@ -14,6 +14,7 @@ from app.schemas.chat import (
     SessionCreateResponse,
     SessionUpdateRequest,
 )
+from app.core.provider_runtime import ProviderRuntimeConfig
 from app.services.provider_router import ProviderRouter
 
 MAX_TEXT_ATTACHMENT_CHARS = 12000
@@ -31,13 +32,25 @@ def derive_title_from_first_message(
     return "New chat"
 
 
-def _thinking_system_content(thinking_enabled: bool) -> str:
-    if thinking_enabled:
+def _thinking_system_content(thinking_enabled: bool, provider: str) -> str:
+    if not thinking_enabled:
+        return "Answer directly and concisely."
+
+    # Ollama streams reasoning via the `thinking` field; asking for XML-style tags here
+    # makes models echo instructions and duplicate markup inside `response`.
+    if provider == "ollama":
         return (
-            "When you reason step-by-step before answering, put that reasoning inside `</think>` tags. "
-            "Put the final answer for the user outside those tags."
+            "You are a helpful assistant. Reply in a natural, direct way. "
+            "Do not quote system text, tag names, or markup in your reply."
         )
-    return "Answer directly and concisely. Do not use `</think>` tags and do not include lengthy hidden reasoning."
+
+    # OpenAI-compatible and Gemini: optional tagged reasoning in assistant output
+    open_t = chr(60) + "think" + chr(62)
+    close_t = chr(60) + "/" + "think" + chr(62)
+    return (
+        f"If you use hidden step-by-step reasoning, put it only in {open_t}...{close_t}; "
+        "keep the user-facing answer outside. Do not repeat these instructions in the answer."
+    )
 
 
 def _decode_b64(data_base64: str) -> bytes:
@@ -125,7 +138,6 @@ class ChatService:
         self.db = db
         self.session_repo = SessionRepository(db)
         self.message_repo = MessageRepository(db)
-        self.router = ProviderRouter()
 
     async def create_session(self, title: str | None = None):
         return await self.session_repo.create(title)
@@ -178,7 +190,7 @@ class ChatService:
         ]
 
     async def stream_chat(
-        self, payload: ChatStreamRequest
+        self, payload: ChatStreamRequest, runtime: ProviderRuntimeConfig
     ) -> AsyncGenerator[str, None]:
         session = await self.session_repo.get(payload.session_id)
         if session is None:
@@ -209,7 +221,9 @@ class ChatService:
         history_payload: list[dict[str, str]] = [
             {
                 "role": "system",
-                "content": _thinking_system_content(payload.thinking_enabled),
+                "content": _thinking_system_content(
+                    payload.thinking_enabled, payload.provider
+                ),
             }
         ]
         history_payload.extend(
@@ -232,7 +246,8 @@ class ChatService:
 
         history_payload.append({"role": "user", "content": content_for_llm})
 
-        provider = self.router.get_provider(payload.provider, payload.model)
+        router = ProviderRouter(runtime)
+        provider = await router.aget_provider(payload.provider, payload.model)
         full_text: list[str] = []
 
         async for chunk in provider.stream_chat(

@@ -1,6 +1,13 @@
-export type ProviderName = "ollama" | "openai_compatible";
+export type ProviderName = "ollama" | "openai_compatible" | "gemini";
 
 export type ChatRole = "user" | "assistant" | "system";
+
+/** In-memory image payloads for user message previews (not persisted by the API). */
+export interface ChatImageAttachment {
+  name: string;
+  mimeType: string;
+  dataBase64: string;
+}
 
 export interface ChatMessage {
   id: string;
@@ -8,6 +15,8 @@ export interface ChatMessage {
   content: string;
   provider?: ProviderName;
   model?: string;
+  /** Populated client-side for thumbnails; merged onto the last user message after sync when possible. */
+  imageAttachments?: ChatImageAttachment[];
 }
 
 export interface SessionModel {
@@ -30,6 +39,17 @@ export interface ChatRequestPayload {
   model: string;
   attachments?: ChatAttachment[];
   thinkingEnabled?: boolean;
+}
+
+/** Client-side observability for the last completed stream (TTFB + throughput). */
+export interface StreamMetrics {
+  /** ms from fetch start until first non-empty decoded chunk */
+  firstChunkMs: number | null;
+  /** Approximate output tok/s from first chunk to stream end (same heuristic as session token bar). */
+  tokensPerSec: number | null;
+  /** Backend `X-Start-Time` (Unix ms) when the stream response was opened, if exposed by the proxy. */
+  serverStreamOpenMs: number | null;
+  totalChars: number;
 }
 
 export interface ProviderModelCatalog {

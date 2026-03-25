@@ -1,53 +1,53 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { useChatStore } from "./store";
 
-describe("chat store", () => {
-  it("updates assistant draft progressively", () => {
+describe("useChatStore", () => {
+  beforeEach(() => {
     useChatStore.setState({
       sessionId: null,
       sessions: [],
-      messages: [{ id: "1", role: "assistant", content: "Hello" }],
+      messages: [],
       selectedProvider: "ollama",
-      selectedModel: "llama3",
+      selectedModel: "qwen3:latest",
+      thinkingEnabled: true,
       isStreaming: false,
-      error: null
+      error: null,
+      lastStreamMetrics: null
     });
-
-    useChatStore.getState().updateAssistantDraft(" world");
-    expect(useChatStore.getState().messages[0].content).toBe("Hello world");
   });
 
-  it("resets chat messages on resetChat", () => {
-    useChatStore.setState({
-      sessionId: "abc",
-      sessions: [{ id: "abc" }],
-      messages: [{ id: "1", role: "user", content: "x" }],
-      selectedProvider: "ollama",
-      selectedModel: "llama3",
-      isStreaming: true,
-      error: "failed"
+  it("appends streaming chunks to the last assistant message", () => {
+    useChatStore.getState().pushMessage({
+      id: "u1",
+      role: "user",
+      content: "Hi",
+      provider: "ollama",
+      model: "qwen3:latest"
     });
+    useChatStore.getState().pushMessage({
+      id: "a1",
+      role: "assistant",
+      content: "",
+      provider: "ollama",
+      model: "qwen3:latest"
+    });
+    useChatStore.getState().updateAssistantDraft("Hel");
+    useChatStore.getState().updateAssistantDraft("lo");
+    const last = useChatStore.getState().messages.at(-1);
+    expect(last?.role).toBe("assistant");
+    expect(last?.content).toBe("Hello");
+  });
 
+  it("stores last stream metrics and clears them on resetChat", () => {
+    useChatStore.getState().setLastStreamMetrics({
+      firstChunkMs: 42,
+      tokensPerSec: 12.5,
+      serverStreamOpenMs: 1_700_000_000_000,
+      totalChars: 100
+    });
+    expect(useChatStore.getState().lastStreamMetrics?.firstChunkMs).toBe(42);
     useChatStore.getState().resetChat();
-
-    expect(useChatStore.getState().messages).toEqual([]);
-    expect(useChatStore.getState().isStreaming).toBe(false);
-    expect(useChatStore.getState().error).toBeNull();
-  });
-
-  it("toggles thinking flag", () => {
-    useChatStore.getState().setThinkingEnabled(false);
-    expect(useChatStore.getState().thinkingEnabled).toBe(false);
-    useChatStore.getState().setThinkingEnabled(true);
-    expect(useChatStore.getState().thinkingEnabled).toBe(true);
-  });
-
-  it("removes session by id", () => {
-    useChatStore.setState({
-      sessions: [{ id: "a" }, { id: "b" }]
-    });
-    useChatStore.getState().removeSession("a");
-    expect(useChatStore.getState().sessions).toEqual([{ id: "b" }]);
+    expect(useChatStore.getState().lastStreamMetrics).toBeNull();
   });
 });

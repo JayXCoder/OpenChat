@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import { ChatMessage, ProviderName, SessionModel } from "@/lib/types";
+import { ChatMessage, ProviderName, SessionModel, StreamMetrics } from "@/lib/types";
 
 interface ChatState {
   sessionId: string | null;
@@ -11,6 +11,7 @@ interface ChatState {
   thinkingEnabled: boolean;
   isStreaming: boolean;
   error: string | null;
+  lastStreamMetrics: StreamMetrics | null;
   setSessionId: (id: string | null) => void;
   setSessions: (sessions: SessionModel[]) => void;
   addSession: (session: SessionModel) => void;
@@ -21,6 +22,7 @@ interface ChatState {
   setThinkingEnabled: (value: boolean) => void;
   setStreaming: (value: boolean) => void;
   setError: (value: string | null) => void;
+  setLastStreamMetrics: (value: StreamMetrics | null) => void;
   resetChat: () => void;
   patchSessionTitle: (id: string, title: string) => void;
   removeSession: (id: string) => void;
@@ -35,6 +37,7 @@ export const useChatStore = create<ChatState>((set) => ({
   thinkingEnabled: true,
   isStreaming: false,
   error: null,
+  lastStreamMetrics: null,
   setSessionId: (id) => set({ sessionId: id }),
   setSessions: (sessions) => set({ sessions }),
   addSession: (session) => set((state) => ({ sessions: [session, ...state.sessions] })),
@@ -55,7 +58,8 @@ export const useChatStore = create<ChatState>((set) => ({
   setThinkingEnabled: (value) => set({ thinkingEnabled: value }),
   setStreaming: (value) => set({ isStreaming: value }),
   setError: (value) => set({ error: value }),
-  resetChat: () => set({ messages: [], error: null, isStreaming: false }),
+  setLastStreamMetrics: (value) => set({ lastStreamMetrics: value }),
+  resetChat: () => set({ messages: [], error: null, isStreaming: false, lastStreamMetrics: null }),
   patchSessionTitle: (id, title) =>
     set((state) => ({
       sessions: state.sessions.map((s) => (s.id === id ? { ...s, title } : s))

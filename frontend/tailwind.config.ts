@@ -5,9 +5,15 @@ const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        memo: ["var(--font-memo)", "ui-monospace", "monospace"]
+      },
       colors: {
-        panel: "#111111",
-        panelAlt: "#1a1a1a"
+        ink: "#000000",
+        paper: "#ffffff",
+        lime: "#dfff00",
+        panel: "#ffffff",
+        panelAlt: "#f4f4f4"
       }
     }
   },

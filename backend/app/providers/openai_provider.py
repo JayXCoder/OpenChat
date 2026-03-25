@@ -47,10 +47,9 @@ class OpenAICompatibleProvider:
         thinking_enabled: bool = True,
     ) -> AsyncIterator[str]:
         _ = thinking_enabled
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
+        headers: dict[str, str] = {"Content-Type": "application/json"}
+        if self.api_key.strip():
+            headers["Authorization"] = f"Bearer {self.api_key}"
         payload: dict[str, Any] = {
             "model": model,
             "messages": self._openai_messages(messages, vision_images),

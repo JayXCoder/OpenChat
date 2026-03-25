@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Menu } from "lucide-react";
 
 import { ChatInput } from "@/components/chat-input";
 import { ChatWindow } from "@/components/chat-window";
 import { Sidebar } from "@/components/sidebar";
+import { ProviderSettingsDialog } from "@/components/provider-settings-dialog";
+import { SysMemoHeader } from "@/components/sys-memo-header";
 import {
   createSession,
   deleteSession,
@@ -16,11 +18,14 @@ import {
   updateSessionTitle
 } from "@/lib/api";
 import { useChatStore } from "@/lib/store";
-import { ChatAttachment, ProviderModelCatalog } from "@/lib/types";
+import { mergePendingImageAttachments } from "@/lib/user-message-display";
+import type { ChatAttachment, ChatImageAttachment, ProviderModelCatalog } from "@/lib/types";
 
 export default function Page() {
   const [catalog, setCatalog] = useState<ProviderModelCatalog[]>([]);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const pendingImageAttachmentsRef = useRef<ChatImageAttachment[] | null>(null);
 
   const sessionId = useChatStore((s) => s.sessionId);
   const sessions = useChatStore((s) => s.sessions);
@@ -36,13 +41,25 @@ export default function Page() {
   const updateAssistantDraft = useChatStore((s) => s.updateAssistantDraft);
   const setStreaming = useChatStore((s) => s.setStreaming);
   const setError = useChatStore((s) => s.setError);
+  const setLastStreamMetrics = useChatStore((s) => s.setLastStreamMetrics);
   const resetChat = useChatStore((s) => s.resetChat);
   const setSessions = useChatStore((s) => s.setSessions);
   const patchSessionTitle = useChatStore((s) => s.patchSessionTitle);
   const removeSession = useChatStore((s) => s.removeSession);
 
+  const refreshCatalog = () =>
+    getModelCatalog()
+      .then(setCatalog)
+      .catch(() =>
+        setCatalog([
+          { provider: "ollama", models: ["llama3"] },
+          { provider: "openai_compatible", models: ["gpt-4o-mini"] },
+          { provider: "gemini", models: ["gemini-flash-latest"] }
+        ])
+      );
+
   useEffect(() => {
-    getModelCatalog().then(setCatalog).catch(() => setCatalog([{ provider: "ollama", models: ["llama3"] }]));
+    void refreshCatalog();
     listSessions()
       .then(setSessions)
       .catch(() => setSessions([]));
@@ -100,16 +117,23 @@ export default function Page() {
         ? `${text.trim() ? "\n\n" : ""}--- Attachments ---\n${attachments.map((a) => `- ${a.name}`).join("\n")}`
         : "");
 
+    const imageAttachments: ChatImageAttachment[] = attachments
+      .filter((a) => a.mimeType.startsWith("image/"))
+      .map((a) => ({ name: a.name, mimeType: a.mimeType, dataBase64: a.dataBase64 }));
+    pendingImageAttachmentsRef.current = imageAttachments.length ? imageAttachments : null;
+
     pushMessage({
       id: crypto.randomUUID(),
       role: "user",
       content: userDisplay || "(attachment only)",
       provider: selectedProvider,
-      model: selectedModel
+      model: selectedModel,
+      ...(imageAttachments.length ? { imageAttachments } : {})
     });
     pushMessage({ id: crypto.randomUUID(), role: "assistant", content: "", provider: selectedProvider, model: selectedModel });
     setStreaming(true);
     setError(null);
+    setLastStreamMetrics(null);
 
     try {
       await streamChat(
@@ -121,7 +145,10 @@ export default function Page() {
           attachments: attachments.length ? attachments : undefined,
           thinkingEnabled
         },
-        (chunk) => updateAssistantDraft(chunk)
+        (chunk) => updateAssistantDraft(chunk),
+        {
+          onComplete: (metrics) => setLastStreamMetrics(metrics)
+        }
       );
     } catch (error) {
       setError((error as Error).message);
@@ -129,21 +156,34 @@ export default function Page() {
       setStreaming(false);
       try {
         const synced = await getSessionMessages(activeSessionId);
-        setMessages(synced);
+        setMessages(mergePendingImageAttachments(synced, pendingImageAttachmentsRef.current));
       } catch {
         // Keep optimistic messages when sync fails.
+      } finally {
+        pendingImageAttachmentsRef.current = null;
       }
       listSessions().then(setSessions).catch(() => {});
     }
   };
 
+  const focusChatInput = () => {
+    document.getElementById("chat-input-field")?.focus();
+  };
+
+  const handleStructuredOut = () => {
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) {
+      setMobileSidebarOpen(true);
+    }
+    document.querySelector<HTMLElement>("[data-sessions-panel]")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
-    <main className="h-dvh min-h-dvh w-full overflow-hidden flex">
+    <main className="flex h-dvh min-h-dvh w-full overflow-hidden bg-paper text-ink">
       {mobileSidebarOpen ? (
         <button
           type="button"
           aria-label="Close sidebar overlay"
-          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+          className="fixed inset-0 z-30 bg-ink/40 md:hidden"
           onClick={() => setMobileSidebarOpen(false)}
         />
       ) : null}
@@ -157,18 +197,32 @@ export default function Page() {
         onRenameSession={handleRenameSession}
         onDeleteSession={handleDeleteSession}
       />
-      <section className="min-w-0 flex-1 flex flex-col bg-black/20 backdrop-blur-sm">
-        <div className="md:hidden border-b border-zinc-800 px-3 py-2 shrink-0">
+      <section className="flex min-w-0 flex-1 flex-col border-l-0 md:border-l-2 md:border-ink">
+        <SysMemoHeader
+          onNewSession={() => {
+            void handleNewChat();
+            focusChatInput();
+          }}
+          onFocusInput={focusChatInput}
+          onOpenSessions={handleStructuredOut}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
+        <ProviderSettingsDialog
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          onSaved={() => void refreshCatalog()}
+        />
+        <div className="md:hidden flex shrink-0 border-b-2 border-ink px-3 py-2">
           <button
             type="button"
             aria-label="Open sidebar"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-200 hover:bg-zinc-800"
+            className="inline-flex h-11 min-w-11 cursor-pointer items-center justify-center border-2 border-ink bg-paper text-ink transition-colors duration-200 hover:bg-ink hover:text-lime focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             onClick={() => setMobileSidebarOpen(true)}
           >
-            <Menu className="h-4 w-4" />
+            <Menu className="h-5 w-5" strokeWidth={2.5} />
           </button>
         </div>
-        <ChatWindow />
+        <ChatWindow onStartTyping={focusChatInput} />
         <ChatInput
           isStreaming={isStreaming}
           thinkingEnabled={thinkingEnabled}

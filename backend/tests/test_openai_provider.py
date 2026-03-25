@@ -70,6 +70,24 @@ async def test_openai_stream_collects_delta_content(monkeypatch):
     assert capture["headers"]["Authorization"] == "Bearer test-key"
 
 
+@pytest.mark.asyncio
+async def test_openai_stream_omits_authorization_without_api_key(monkeypatch):
+    capture = {}
+    lines = ['data: {"choices":[{"delta":{"content":"ok"}}]}', "data: [DONE]"]
+    monkeypatch.setattr(
+        openai_provider.httpx,
+        "AsyncClient",
+        lambda timeout: _FakeAsyncClient(capture, lines),
+    )
+    provider = openai_provider.OpenAICompatibleProvider("https://api.example/v1", "")
+    async for _ in provider.stream_chat(
+        messages=[{"role": "user", "content": "hi"}],
+        model="gpt-4o-mini",
+    ):
+        pass
+    assert "Authorization" not in capture["headers"]
+
+
 def test_openai_messages_adds_multimodal_for_last_user():
     provider = openai_provider.OpenAICompatibleProvider("https://api.example/v1", "x")
     messages = [

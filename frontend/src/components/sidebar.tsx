@@ -78,43 +78,43 @@ export function Sidebar({
     <aside
       className={`${
         mobileOpen ? "flex" : "hidden"
-      } fixed inset-y-0 left-0 z-40 w-[85vw] max-w-80 bg-panel/95 border-r border-zinc-800 p-3 md:p-4 flex-col gap-3 md:gap-4 transition-transform duration-200 md:static md:flex md:w-80 md:max-w-none md:translate-x-0 ${
+      } fixed inset-y-0 left-0 z-40 w-[85vw] max-w-80 flex-col gap-3 border-r-2 border-ink bg-paper p-3 transition-transform duration-200 md:static md:flex md:w-80 md:max-w-none md:translate-x-0 md:p-4 md:gap-4 ${
         mobileOpen ? "translate-x-0" : "-translate-x-full"
       }`}
       aria-hidden={!mobileOpen}
     >
       <AppLogo />
       <button
-        className="w-full rounded-lg border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 transition px-3 py-2 text-sm flex items-center justify-center gap-2"
+        className="flex w-full min-h-11 cursor-pointer items-center justify-center gap-2 border-2 border-ink bg-paper px-3 py-2 text-xs font-bold uppercase tracking-wide text-ink transition-colors duration-200 hover:bg-ink hover:text-lime focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         onClick={() => {
           onNewChat();
           onCloseMobile();
         }}
       >
-        <PlusCircle size={16} />
+        <PlusCircle size={16} strokeWidth={2.5} />
         New Chat
       </button>
 
       <ModelSelector catalog={catalog} />
 
-      <div className="text-xs uppercase text-zinc-400 tracking-wide">Sessions</div>
-      <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
+      <div data-sessions-panel className="text-[10px] font-bold uppercase tracking-wider text-ink md:text-xs">
+        Sessions
+      </div>
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
         {sessions.map((session) => (
           <div
             key={session.id}
-            className={`relative flex items-stretch gap-0.5 rounded-lg border ${
-              session.id === sessionId
-                ? "border-blue-500 bg-blue-500/10"
-                : "border-zinc-800 bg-zinc-900"
+            className={`relative flex items-stretch border-2 border-ink ${
+              session.id === sessionId ? "bg-lime text-ink" : "bg-paper text-ink"
             }`}
           >
             {editingId === session.id ? (
-              <div className="flex flex-1 flex-col gap-1 p-2">
+              <div className="flex flex-1 flex-col gap-2 p-2">
                 <input
                   type="text"
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value)}
-                  className="w-full rounded border border-zinc-600 bg-zinc-950 px-2 py-1.5 text-sm text-zinc-100 outline-none focus:border-blue-500"
+                  className="w-full border-2 border-ink bg-paper px-2 py-2 text-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-ink"
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.key === "Enter") void saveRename();
@@ -124,14 +124,14 @@ export function Sidebar({
                 <div className="flex justify-end gap-2">
                   <button
                     type="button"
-                    className="rounded px-2 py-0.5 text-xs text-zinc-400 hover:bg-zinc-800"
+                    className="cursor-pointer border-2 border-transparent px-2 py-1 text-[10px] font-bold uppercase text-ink/70 hover:border-ink hover:bg-panelAlt"
                     onClick={cancelRename}
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
-                    className="rounded bg-blue-600 px-2 py-0.5 text-xs text-white hover:bg-blue-500"
+                    className="cursor-pointer border-2 border-ink bg-ink px-2 py-1 text-[10px] font-bold uppercase text-lime hover:bg-lime hover:text-ink"
                     onClick={() => void saveRename()}
                   >
                     Save
@@ -143,7 +143,9 @@ export function Sidebar({
                 <button
                   type="button"
                   onClick={() => handleSelect(session.id)}
-                  className="min-w-0 flex-1 px-3 py-2 text-left text-sm text-zinc-200 hover:bg-zinc-800/50 rounded-l-lg"
+                  className={`min-w-0 flex-1 px-3 py-2 text-left text-xs md:text-sm ${
+                    session.id === sessionId ? "font-bold" : "hover:bg-panelAlt"
+                  }`}
                 >
                   <span className="line-clamp-2">{session.title?.trim() || "Untitled chat"}</span>
                 </button>
@@ -151,23 +153,23 @@ export function Sidebar({
                   <button
                     type="button"
                     data-session-menu
-                    className="flex h-full items-center rounded-r-lg border border-transparent px-2 text-zinc-400 hover:border-zinc-700 hover:bg-zinc-800 hover:text-zinc-200"
+                    className="flex h-full min-w-11 cursor-pointer items-center border-l-2 border-ink px-2 text-ink hover:bg-ink hover:text-lime focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink"
                     aria-label="Session menu"
                     onClick={(e) => {
                       e.stopPropagation();
                       setMenuOpenId((prev) => (prev === session.id ? null : session.id));
                     }}
                   >
-                    <Menu className="h-4 w-4" />
+                    <Menu className="h-4 w-4" strokeWidth={2.5} />
                   </button>
                   {menuOpenId === session.id && (
                     <div
                       data-session-menu
-                      className="absolute right-0 top-full z-20 mt-1 min-w-[9rem] rounded-lg border border-zinc-700 bg-zinc-950 py-1 shadow-xl"
+                      className="absolute right-0 top-full z-20 mt-1 min-w-[9rem] border-2 border-ink bg-paper py-1"
                     >
                       <button
                         type="button"
-                        className="w-full px-3 py-2 text-left text-sm text-zinc-200 hover:bg-zinc-800"
+                        className="w-full cursor-pointer px-3 py-2 text-left text-xs font-bold uppercase text-ink hover:bg-panelAlt"
                         onClick={(e) => {
                           e.stopPropagation();
                           startRename(session);
@@ -177,7 +179,7 @@ export function Sidebar({
                       </button>
                       <button
                         type="button"
-                        className="w-full px-3 py-2 text-left text-sm text-red-300 hover:bg-zinc-800"
+                        className="w-full cursor-pointer px-3 py-2 text-left text-xs font-bold uppercase text-red-700 hover:bg-panelAlt"
                         onClick={(e) => {
                           e.stopPropagation();
                           setMenuOpenId(null);
@@ -195,7 +197,9 @@ export function Sidebar({
         ))}
       </div>
 
-      <div className="text-xs text-zinc-500">Settings and provider config are env-driven.</div>
+      <div className="text-[10px] font-bold uppercase leading-snug text-ink/60 md:text-xs">
+        Settings and provider config are env-driven.
+      </div>
     </aside>
   );
 }

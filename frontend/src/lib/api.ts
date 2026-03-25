@@ -1,4 +1,16 @@
-import { ChatRequestPayload, ChatMessage, ProviderModelCatalog, SessionModel } from "@/lib/types";
+import { estimateTokenCount } from "@/lib/chat-metrics";
+import { applyProviderOverrideHeaders } from "@/lib/provider-settings";
+import {
+  ChatRequestPayload,
+  ChatMessage,
+  ProviderModelCatalog,
+  SessionModel,
+  StreamMetrics
+} from "@/lib/types";
+
+export type StreamChatOptions = {
+  onComplete?: (metrics: StreamMetrics) => void;
+};
 
 export async function updateSessionTitle(sessionId: string, title: string): Promise<SessionModel> {
   const response = await fetch(`/api/sessions/${sessionId}`, {
@@ -43,17 +55,33 @@ export async function createSession(title?: string): Promise<SessionModel> {
   return response.json();
 }
 
+function normalizeChatMessage(raw: Record<string, unknown>): ChatMessage {
+  return {
+    id: String(raw.id),
+    role: raw.role as ChatMessage["role"],
+    content: String(raw.content ?? ""),
+    provider: raw.provider as ChatMessage["provider"],
+    model: raw.model != null ? String(raw.model) : undefined
+  };
+}
+
 export async function getSessionMessages(sessionId: string): Promise<ChatMessage[]> {
   const response = await fetch(`/api/sessions?id=${encodeURIComponent(sessionId)}`);
   if (!response.ok) {
     throw new Error("Failed to fetch session messages");
   }
 
-  return response.json();
+  const data: unknown = await response.json();
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.map((item) => normalizeChatMessage(item as Record<string, unknown>));
 }
 
 export async function getModelCatalog(): Promise<ProviderModelCatalog[]> {
-  const response = await fetch("/api/models");
+  const headers = new Headers();
+  applyProviderOverrideHeaders(headers);
+  const response = await fetch("/api/models", { headers });
   if (!response.ok) {
     throw new Error("Failed to fetch models");
   }
@@ -62,7 +90,8 @@ export async function getModelCatalog(): Promise<ProviderModelCatalog[]> {
 
 export async function streamChat(
   payload: ChatRequestPayload,
-  onChunk: (chunk: string) => void
+  onChunk: (chunk: string) => void,
+  options?: StreamChatOptions
 ): Promise<void> {
   const body = {
     session_id: payload.session_id,
@@ -81,9 +110,14 @@ export async function streamChat(
       : {})
   };
 
+  const tRequestStart =
+    typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
+
+  const headers = new Headers({ "Content-Type": "application/json" });
+  applyProviderOverrideHeaders(headers);
   const response = await fetch("/api/chat", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(body)
   });
 
@@ -91,8 +125,16 @@ export async function streamChat(
     throw new Error("Stream request failed");
   }
 
+  const rawStart = response.headers.get("X-Start-Time");
+  const serverStreamOpenMs =
+    rawStart !== null && rawStart !== "" && !Number.isNaN(Number(rawStart)) ? Number(rawStart) : null;
+
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
+
+  let accumulated = "";
+  let firstChunkMs: number | null = null;
+  let tFirstChunkAbs: number | null = null;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -101,7 +143,28 @@ export async function streamChat(
     }
     const chunk = decoder.decode(value, { stream: true });
     if (chunk) {
+      if (firstChunkMs === null) {
+        const now =
+          typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
+        firstChunkMs = now - tRequestStart;
+        tFirstChunkAbs = now;
+      }
+      accumulated += chunk;
       onChunk(chunk);
     }
   }
+
+  const tEnd =
+    typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
+  const streamActiveMs = tFirstChunkAbs !== null ? Math.max(0, tEnd - tFirstChunkAbs) : 0;
+  const approxTok = accumulated.trim() ? estimateTokenCount(accumulated) : 0;
+  const tokensPerSec =
+    streamActiveMs > 0 && approxTok > 0 ? Math.round((approxTok / streamActiveMs) * 1000 * 10) / 10 : null;
+
+  options?.onComplete?.({
+    firstChunkMs,
+    tokensPerSec,
+    serverStreamOpenMs,
+    totalChars: accumulated.length
+  });
 }
