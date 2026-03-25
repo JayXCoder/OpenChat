@@ -4,6 +4,7 @@ import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 
 import { Brain, Plus, X } from "lucide-react";
 
+import { ImageLightbox } from "@/components/image-lightbox";
 import { ChatAttachment } from "@/lib/types";
 
 const MAX_FILES = 8;
@@ -48,6 +49,7 @@ export function ChatInput({
 }: ChatInputProps) {
   const [value, setValue] = useState("");
   const [pending, setPending] = useState<PendingFile[]>([]);
+  const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingRef = useRef(pending);
   pendingRef.current = pending;
@@ -130,9 +132,9 @@ export function ChatInput({
   return (
     <form
       onSubmit={submit}
-      className="sticky bottom-0 z-20 border-t border-zinc-800 p-2 md:p-4 bg-panelAlt/90 shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+      className="sticky bottom-0 z-20 shrink-0 border-t-2 border-ink bg-paper p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:p-4"
     >
-      <div className="rounded-2xl border border-zinc-700 bg-zinc-900 p-2.5 md:p-3 flex flex-col gap-2">
+      <div className="flex flex-col gap-2 border-2 border-ink bg-panelAlt p-2.5 md:p-3">
         <div className="flex flex-wrap items-center gap-2">
           <input
             ref={fileInputRef}
@@ -148,23 +150,21 @@ export function ChatInput({
           <button
             type="button"
             disabled={isStreaming}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-600 bg-zinc-800 text-zinc-200 hover:bg-zinc-700 disabled:opacity-40"
+            className="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center border-2 border-ink bg-paper text-ink transition-colors duration-200 hover:bg-ink hover:text-lime disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="Add files or images"
             onClick={() => fileInputRef.current?.click()}
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-4 w-4" strokeWidth={2.5} />
           </button>
           <button
             type="button"
             disabled={isStreaming}
             onClick={() => onThinkingEnabledChange(!thinkingEnabled)}
-            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition disabled:opacity-40 ${
-              thinkingEnabled
-                ? "border-emerald-500/60 bg-emerald-500/15 text-emerald-200"
-                : "border-zinc-600 bg-zinc-800 text-zinc-400"
+            className={`inline-flex min-h-11 cursor-pointer items-center gap-1.5 border-2 border-ink px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-40 ${
+              thinkingEnabled ? "bg-lime text-ink hover:bg-ink hover:text-lime" : "bg-paper text-ink hover:bg-ink hover:text-lime"
             }`}
           >
-            <Brain className="h-3.5 w-3.5" />
+            <Brain className="h-3.5 w-3.5" strokeWidth={2.5} />
             Thinking {thinkingEnabled ? "on" : "off"}
           </button>
         </div>
@@ -174,38 +174,44 @@ export function ChatInput({
             {pending.map((p) => (
               <div
                 key={p.id}
-                className="flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-950/80 pl-1 pr-1 py-1 text-xs text-zinc-300 max-w-full"
+                className="flex max-w-full items-center gap-2 border-2 border-ink bg-paper py-1 pl-1 pr-1 text-xs text-ink"
               >
                 {p.previewUrl ? (
-                  <img
-                    src={p.previewUrl}
-                    alt=""
-                    className="h-9 w-9 rounded object-cover shrink-0"
-                  />
+                  <button
+                    type="button"
+                    className="relative h-11 w-11 min-h-11 min-w-11 shrink-0 cursor-pointer overflow-hidden border-2 border-ink bg-panelAlt transition-colors duration-200 hover:border-lime focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
+                    aria-label={`View full size: ${p.file.name}`}
+                    onClick={() => setLightbox({ src: p.previewUrl!, alt: p.file.name })}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element -- blob URL from user file */}
+                    <img src={p.previewUrl} alt="" className="h-full w-full object-cover" />
+                    <span className="sr-only">{p.file.name}</span>
+                  </button>
                 ) : (
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-zinc-800 text-[10px] text-zinc-500">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center border-2 border-ink bg-panelAlt text-[10px] font-bold uppercase text-ink/60">
                     FILE
                   </div>
                 )}
-                <span className="truncate max-w-[10rem]" title={p.file.name}>
+                <span className="max-w-[10rem] truncate font-bold uppercase" title={p.file.name}>
                   {p.file.name}
                 </span>
                 <button
                   type="button"
-                  className="shrink-0 rounded p-0.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                  className="flex h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center text-ink transition-colors duration-200 hover:bg-ink hover:text-lime focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
                   aria-label="Remove attachment"
                   onClick={() => removePending(p.id)}
                 >
-                  <X className="h-3.5 w-3.5" />
+                  <X className="h-3.5 w-3.5" strokeWidth={2.5} />
                 </button>
               </div>
             ))}
           </div>
         ) : null}
 
-        <div className="flex gap-2 md:gap-3 items-end">
+        <div className="flex items-end gap-2 md:gap-3">
           <textarea
-            className="flex-1 resize-none bg-transparent outline-none text-sm text-zinc-100 min-h-16 md:min-h-20"
+            id="chat-input-field"
+            className="min-h-16 flex-1 resize-none bg-transparent text-sm text-ink outline-none placeholder:text-ink/45 md:min-h-20 md:text-base"
             placeholder="Ask anything… (optional if you attach files)"
             value={value}
             onChange={(event) => setValue(event.target.value)}
@@ -214,12 +220,15 @@ export function ChatInput({
           <button
             type="submit"
             disabled={isStreaming || (!value.trim() && pending.length === 0)}
-            className="rounded-lg bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-700 px-3 md:px-4 py-2 text-sm shrink-0"
+            className="min-h-11 shrink-0 cursor-pointer border-2 border-ink bg-ink px-3 py-2 text-xs font-bold uppercase text-lime transition-colors duration-200 hover:bg-lime hover:text-ink disabled:cursor-not-allowed disabled:border-ink/40 disabled:bg-panelAlt disabled:text-ink/40 md:px-4 md:text-sm"
           >
             Send
           </button>
         </div>
       </div>
+      {lightbox ? (
+        <ImageLightbox src={lightbox.src} alt={lightbox.alt} onClose={() => setLightbox(null)} />
+      ) : null}
     </form>
   );
 }

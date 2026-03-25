@@ -26,7 +26,11 @@ class Settings(BaseSettings):
     openai_compat_base_url: str = "https://api.openai.com/v1"
     openai_compat_api_key: str = ""
 
-    default_provider: Literal["ollama", "openai_compatible"] = "ollama"
+    gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
+    gemini_api_key: str = ""
+    gemini_models: str = "gemini-flash-latest,gemini-2.0-flash,gemini-2.5-flash"
+
+    default_provider: Literal["ollama", "openai_compatible", "gemini"] = "ollama"
     default_model: str = "qwen3:latest"
 
     ollama_models: str = (

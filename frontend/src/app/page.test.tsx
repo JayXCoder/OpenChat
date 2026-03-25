@@ -29,7 +29,8 @@ describe("Page integration", () => {
       selectedModel: "qwen3:latest",
       thinkingEnabled: true,
       isStreaming: false,
-      error: null
+      error: null,
+      lastStreamMetrics: null
     });
 
     apiMock.getModelCatalog.mockResolvedValue([
@@ -52,10 +53,22 @@ describe("Page integration", () => {
     apiMock.createSession.mockResolvedValue({ id: "s3", title: null });
     apiMock.updateSessionTitle.mockResolvedValue({ id: "s1", title: "Renamed" });
     apiMock.deleteSession.mockResolvedValue(undefined);
-    apiMock.streamChat.mockImplementation(async (_payload: unknown, onChunk: (x: string) => void) => {
-      onChunk("Hello");
-      onChunk(" world");
-    });
+    apiMock.streamChat.mockImplementation(
+      async (
+        _payload: unknown,
+        onChunk: (x: string) => void,
+        options?: { onComplete?: (m: unknown) => void }
+      ) => {
+        onChunk("Hello");
+        onChunk(" world");
+        options?.onComplete?.({
+          firstChunkMs: 1,
+          tokensPerSec: 10,
+          serverStreamOpenMs: null,
+          totalChars: 11
+        });
+      }
+    );
   });
 
   it("switches sessions and loads messages", async () => {

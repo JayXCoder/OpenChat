@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 
+from app.core.provider_runtime import ProviderRuntimeConfig
 from app.schemas.chat import AttachmentIn, ChatStreamRequest
 from app.services.chat_service import (
     ChatService,
@@ -46,16 +47,6 @@ class FakeProvider:
             yield chunk
 
 
-class FakeRouter:
-    def __init__(self, provider):
-        self.provider = provider
-
-    def get_provider(self, provider: str, model: str):
-        assert provider == "ollama"
-        assert model == "qwen3:latest"
-        return self.provider
-
-
 def _b64(data: bytes) -> str:
     return base64.b64encode(data).decode("ascii")
 
@@ -96,13 +87,23 @@ def test_build_user_turn_splits_vision_and_text_attachments():
 
 
 @pytest.mark.asyncio
-async def test_stream_chat_persists_messages_and_passes_flags():
+async def test_stream_chat_persists_messages_and_passes_flags(monkeypatch):
     service = ChatService(db=None)
     service.session_repo = FakeSessionRepo()
     message_repo = FakeMessageRepo()
     service.message_repo = message_repo
     provider = FakeProvider()
-    service.router = FakeRouter(provider)
+
+    class StubRouter:
+        def __init__(self, _runtime: ProviderRuntimeConfig) -> None:
+            pass
+
+        async def aget_provider(self, p_name: str, model: str):
+            assert p_name == "ollama"
+            assert model == "qwen3:latest"
+            return provider
+
+    monkeypatch.setattr("app.services.chat_service.ProviderRouter", StubRouter)
 
     payload = ChatStreamRequest(
         session_id=uuid4(),
@@ -112,8 +113,20 @@ async def test_stream_chat_persists_messages_and_passes_flags():
         thinking_enabled=False,
     )
 
+    runtime = ProviderRuntimeConfig(
+        ollama_base_url="http://localhost:11434",
+        openai_compat_base_url="https://api.openai.com/v1",
+        openai_compat_api_key="",
+        ollama_models_fallback=["qwen3:latest"],
+        openai_compat_models=["gpt-4o-mini"],
+        gemini_base_url="https://generativelanguage.googleapis.com/v1beta",
+        gemini_api_key="",
+        gemini_models=["gemini-2.0-flash"],
+        request_timeout_seconds=30,
+    )
+
     output = []
-    async for chunk in service.stream_chat(payload):
+    async for chunk in service.stream_chat(payload, runtime):
         output.append(chunk)
 
     assert "".join(output) == "Hello world"

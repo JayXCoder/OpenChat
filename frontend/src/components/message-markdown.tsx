@@ -3,7 +3,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import xonokai from "react-syntax-highlighter/dist/esm/styles/prism/xonokai";
+import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 function normalizeLang(lang: string | undefined): string {
   if (!lang) return "plaintext";
@@ -53,14 +53,14 @@ export function MessageMarkdown({ content }: MessageMarkdownProps) {
   return (
     <div
       className={
-        "prose prose-invert prose-sm max-w-none text-zinc-300 " +
-        "prose-headings:mb-2 prose-headings:mt-4 prose-headings:font-semibold prose-headings:text-zinc-100 " +
+        "prose prose-sm max-w-none text-ink " +
+        "prose-headings:mb-2 prose-headings:mt-4 prose-headings:font-bold prose-headings:uppercase prose-headings:tracking-wide prose-headings:text-ink " +
         "prose-h1:text-lg prose-h2:text-base prose-h3:text-sm " +
         "prose-p:my-2 prose-p:leading-relaxed " +
-        "prose-strong:text-zinc-100 prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline " +
+        "prose-strong:text-ink prose-a:text-ink prose-a:underline prose-a:decoration-2 prose-a:underline-offset-2 hover:prose-a:bg-lime " +
         "prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 " +
-        "prose-blockquote:border-l-zinc-600 prose-blockquote:text-zinc-400 " +
-        "prose-hr:border-zinc-700"
+        "prose-blockquote:border-l-ink prose-blockquote:border-l-4 prose-blockquote:text-ink/80 " +
+        "prose-hr:border-ink"
       }
     >
       <ReactMarkdown
@@ -92,7 +92,7 @@ export function MessageMarkdown({ content }: MessageMarkdownProps) {
             if (!isBlock) {
               return (
                 <code
-                  className="not-prose rounded bg-zinc-800/90 px-1.5 py-0.5 font-mono text-[0.85em] text-zinc-100"
+                  className="not-prose border border-ink bg-panelAlt px-1.5 py-0.5 font-mono text-[0.85em] text-ink"
                   {...props}
                 >
                   {children}
@@ -104,12 +104,13 @@ export function MessageMarkdown({ content }: MessageMarkdownProps) {
             return (
               <SyntaxHighlighter
                 language={lang}
-                style={xonokai}
+                style={oneLight}
                 PreTag="div"
                 customStyle={{
                   margin: 0,
                   padding: "0.875rem 1rem",
-                  borderRadius: "0.5rem",
+                  borderRadius: 0,
+                  border: "2px solid #000000",
                   fontSize: "0.8125rem",
                   lineHeight: 1.5
                 }}

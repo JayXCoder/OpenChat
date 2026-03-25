@@ -15,7 +15,8 @@ describe("ChatWindow streaming behavior", () => {
       selectedModel: "qwen3:latest",
       thinkingEnabled: true,
       isStreaming: true,
-      error: null
+      error: null,
+      lastStreamMetrics: null
     });
 
     render(<ChatWindow />);
