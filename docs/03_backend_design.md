@@ -19,7 +19,7 @@ backend/
 │   ├── schemas/             # Pydantic request/response models
 │   ├── repositories/        # SessionRepository, MessageRepository
 │   ├── services/            # ChatService, ProviderRouter
-│   └── providers/           # OllamaProvider, OpenAICompatibleProvider
+│   └── providers/           # OllamaProvider, OpenAICompatibleProvider, GeminiProvider
 ├── alembic/                 # migrations
 ├── tests/                   # pytest
 └── requirements.txt
@@ -34,13 +34,13 @@ backend/
 `ChatService` owns:
 
 - **Session lifecycle helpers** used by routes (list, create, rename, delete).
-- **`stream_chat`**: the core chat pipeline:
+- `**stream_chat`**: the core chat pipeline:
   - Load session; **404** path becomes a `ValueError` mapped to HTTP errors where appropriate.
   - Persist **user** message (including derived DB-facing attachment summary).
   - Optionally **update session title** from the first user turn.
-  - Build **`history_payload`**: system instructions (thinking mode aware), prior messages, optional `retrieve_context` / `run_tool` hooks, then current user content.
-  - Resolve provider via **`ProviderRouter.aget_provider`**.
-  - Stream chunks from **`provider.stream_chat`** and **yield** each chunk to the caller.
+  - Build `**history_payload`**: system instructions (thinking mode aware), prior messages, optional `retrieve_context` / `run_tool` hooks, then current user content.
+  - Resolve provider via `**ProviderRouter.aget_provider**`.
+  - Stream chunks from `**provider.stream_chat**` and **yield** each chunk to the caller.
   - After completion, persist **assistant** message with full concatenated text.
 
 This keeps the **chat route** as a thin wrapper around streaming and error translation.
@@ -70,19 +70,19 @@ This keeps the **chat route** as a thin wrapper around streaming and error trans
 
 ### `chat_sessions`
 
-- **`id`**: UUID primary key.
-- **`title`**: optional; derived from first message or attachment-only default.
-- **`created_at` / `updated_at`**: timezone-aware timestamps.
-- **Relationship:** one-to-many **`messages`** with cascade delete.
+- `**id`**: UUID primary key.
+- `**title**`: optional; derived from first message or attachment-only default.
+- `**created_at` / `updated_at**`: timezone-aware timestamps.
+- **Relationship:** one-to-many `**messages`** with cascade delete.
 
 ### `chat_messages`
 
-- **`id`**: integer surrogate key.
-- **`session_id`**: FK to `chat_sessions.id` (CASCADE on delete).
-- **`role`**: `"user"` | `"assistant"` | (system content is not stored as rows today; it is assembled per request).
-- **`content`**: full text (including user-visible attachment summaries in DB).
-- **`provider` / `model`**: strings for auditing and UI display.
-- **`created_at`**: timestamp.
+- `**id**`: integer surrogate key.
+- `**session_id**`: FK to `chat_sessions.id` (CASCADE on delete).
+- `**role**`: `"user"` | `"assistant"` | (system content is not stored as rows today; it is assembled per request).
+- `**content**`: full text (including user-visible attachment summaries in DB).
+- `**provider` / `model**`: strings for auditing and UI display.
+- `**created_at**`: timestamp.
 
 **Alembic** (`0001_initial.py`) creates these tables; tests use `Base.metadata.create_all` against a dedicated test database URL.
 
@@ -93,14 +93,14 @@ This keeps the **chat route** as a thin wrapper around streaming and error trans
 ### `OllamaProvider`
 
 - **POST** `/api/generate` with **streaming** enabled.
-- Parses **JSON lines**; maps Ollama **`thinking`** / **`response`** fields into a single text stream, optionally wrapping thinking segments in XML-style tags for UI splitting.
+- Parses **JSON lines**; maps Ollama `**thinking`** / `**response**` fields into a single text stream, optionally wrapping thinking segments in XML-style tags for UI splitting.
 
 ### `OpenAICompatibleProvider`
 
-- **POST** `/chat/completions` with **`stream: true`**.
+- **POST** `/chat/completions` with `**stream: true`**.
 - Parses **SSE-style** `data:` lines, extracts `delta.content`.
 
-Both expose **`async def stream_chat(...) -> AsyncIterator[str]`**, which is what `ChatService` depends on.
+Both expose `**async def stream_chat(...) -> AsyncIterator[str]`**, which is what `ChatService` depends on.
 
 ---
 
@@ -122,6 +122,7 @@ Both expose **`async def stream_chat(...) -> AsyncIterator[str]`**, which is wha
 
 ## Separation of concerns (summary)
 
+
 | Concern                        | Where it lives        |
 | ------------------------------ | --------------------- |
 | HTTP status codes              | Routes                |
@@ -131,6 +132,7 @@ Both expose **`async def stream_chat(...) -> AsyncIterator[str]`**, which is wha
 | Vendor wire format             | Providers             |
 | Model allowlists               | `ProviderRouter`      |
 
+
 ---
 
 ## Related documents
@@ -138,3 +140,4 @@ Both expose **`async def stream_chat(...) -> AsyncIterator[str]`**, which is wha
 - [Architecture](./02_architecture.md)
 - [Features](./05_features.md)
 - [Testing](./06_testing.md)
+
